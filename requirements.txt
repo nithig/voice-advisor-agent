@@ -1,0 +1,10 @@
+```text
+rasa==3.10
+spacy
+sanic
+gTTS
+SpeechRecognition
+pygame
+pyaudio
+pymongo
+requests

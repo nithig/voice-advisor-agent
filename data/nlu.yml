@@ -1,0 +1,80 @@
+version: "3.1"
+
+nlu:
+- intent: greet
+  examples: |
+    - hey
+    - hello
+    - hi
+    - hello there
+    - good morning
+    - good evening
+    - moin
+    - hey there
+    - let's go
+    - hey dude
+    - goodmorning
+    - goodevening
+    - good afternoon
+
+- intent: goodbye
+  examples: |
+    - cu
+    - good by
+    - cee you later
+    - good night
+    - bye
+    - goodbye
+    - have a nice day
+    - see you around
+    - bye bye
+    - see you later
+    - hang up
+    - that is all
+    - nothing else thanks
+    - good night
+
+- intent: affirm
+  examples: |
+    - yes
+    - y
+    - indeed
+    - of course
+    - that sounds good
+    - correct
+
+- intent: deny
+  examples: |
+    - no
+    - n
+    - never
+    - I don't think so
+    - don't like that
+    - no way
+    - not really
+
+- intent: ask_order_status
+  examples: |
+    - where is my package
+    - track my order
+    - check order status
+    - tell me about delivery
+    - I want to know where my stuff is
+    - check status for [1234567](order_id)
+    - track order [ORD-99](order_id)
+    - update on [XYZ-001](order_id)
+
+- intent: provide_order_id
+  examples: |
+    - it is [1234567](order_id)
+    - the number is [ORD-99](order_id)
+    - [ABC-555](order_id)
+    - my id is [998877](order_id)
+
+- intent: escalate_to_human
+  examples: |
+    - I want to talk to a person
+    - human please
+    - this bot is stupid
+    - connect me to an agent
+    - operator

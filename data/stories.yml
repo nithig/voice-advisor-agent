@@ -1,0 +1,55 @@
+version: "3.1"
+
+stories:
+
+- story: Full Order Status Check Path
+  steps:
+    - intent: greet
+    - action: utter_greet
+    - intent: ask_order_status
+      entities:
+        - order_id: "9876543"
+    - action: order_status_form
+    - active_loop: order_status_form
+    - active_loop: null
+    - action: action_check_status_api
+    # REMOVED: - action: utter_goodbye (Let the user decide when to leave)
+
+- story: Status Check with Missing ID
+  steps:
+    - intent: ask_order_status
+    - action: order_status_form
+    - active_loop: order_status_form
+    - intent: provide_order_id
+      entities:
+        - order_id: "ORD888"
+    - active_loop: null
+    - action: action_check_status_api
+    # REMOVED: - action: utter_goodbye
+
+- story: User Escalates from the start
+  steps:
+    - intent: greet
+    - action: utter_greet
+    - intent: escalate_to_human
+    - action: action_escalate_and_handoff
+    
+- story: User escalates after bot fails to understand
+  steps:
+    - intent: greet
+    - action: utter_greet
+    - intent: deny
+    - action: utter_default # Ensure this response exists in domain.yml
+    - intent: escalate_to_human
+    - action: action_escalate_and_handoff
+
+- story: Handling an unknown order ID
+  steps:
+    - intent: ask_order_status
+      entities:
+        - order_id: "UNKNOWNID123"
+    - action: order_status_form
+    - active_loop: order_status_form
+    - active_loop: null
+    - action: action_check_status_api
+    # REMOVED: - action: utter_goodbye

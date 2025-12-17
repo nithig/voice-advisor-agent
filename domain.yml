@@ -1,0 +1,54 @@
+version: "3.1"
+
+intents:
+  - greet
+  - goodbye
+  - affirm
+  - deny
+  - ask_order_status
+  - provide_order_id
+  - escalate_to_human
+
+entities:
+  - order_id
+
+slots:
+  order_id:
+    type: text
+    mappings:
+      - type: from_entity
+        entity: order_id
+
+forms:
+  order_status_form:
+    required_slots:
+      - order_id
+
+actions:
+  - action_check_status_api
+  - action_escalate_and_handoff
+  - validate_order_status_form
+
+responses:
+  utter_greet:
+    - text: "Hello. I am your automated advisor. How can I help you today?"
+
+  utter_goodbye:
+    - text: "Thank you for calling. Have a great day."
+
+  utter_ask_order_id:
+    - text: "I can look that up. Please say your Order ID clearly."
+
+  utter_handoff_confirmation:
+    - text: "I understand. Please hold while I connect you to a specialist."
+
+  utter_ask_rephrase:
+    - text: "I'm sorry, I didn't catch that. Could you say it again?"
+
+  # --- THIS WAS MISSING ---
+  utter_default:
+    - text: "I'm sorry, I didn't quite understand that. You can ask me to track an order or say 'agent' to speak to a human."
+
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true
