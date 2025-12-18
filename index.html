@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Advisor Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #121212;
+            --chat-bg: #1E1E1E;
+            --user-msg-bg: #3B82F6; /* Modern Blue */
+            --bot-msg-bg: #2D2D2D;
+            --text-color: #E0E0E0;
+            --accent-color: #3B82F6;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 500px;
+            height: 90vh;
+            background-color: var(--chat-bg);
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+
+        .header {
+            padding: 20px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: 600;
+            border-bottom: 1px solid #333;
+            background: rgba(30, 30, 30, 0.8);
+            backdrop-filter: blur(10px);
+        }
+
+        #chat-box {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-color) var(--chat-bg);
+        }
+
+        /* Message Bubbles */
+        .message {
+            max-width: 80%;
+            padding: 12px 18px;
+            border-radius: 18px;
+            line-height: 1.5;
+            font-size: 15px;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background-color: var(--user-msg-bg);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .bot-message {
+            align-self: flex-start;
+            background-color: var(--bot-msg-bg);
+            color: var(--text-color);
+            border-bottom-left-radius: 4px;
+            border: 1px solid #444;
+        }
+
+        /* Footer & Controls */
+        .footer {
+            padding: 20px;
+            background: var(--chat-bg);
+            border-top: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #status-text {
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #888;
+            height: 20px;
+        }
+
+        /* Mic Button Styling */
+        .mic-button-container {
+            position: relative;
+            width: 70px;
+            height: 70px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #mic-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            background-color: var(--accent-color);
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            z-index: 2;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+
+        #mic-btn:hover { transform: scale(1.05); }
+        #mic-btn.processing { background-color: #F59E0B; /* Amber for thinking */ }
+        
+        /* Listening Animation Ring */
+        .listening-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background-color: var(--accent-color);
+            opacity: 0.6;
+            z-index: 1;
+            transform: scale(1);
+            display: none; /* Hidden by default */
+        }
+
+        .listening .listening-ring {
+            display: block;
+            animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <div class="header">
+            🎙️ AI Voice Advisor
+        </div>
+        
+        <div id="chat-box">
+            <div class="message bot-message">
+                Hello! I am your AI Voice Advisor. Tap the microphone to start chatting.
+            </div>
+        </div>
+
+        <div class="footer">
+            <div id="status-text">Ready to listen</div>
+            <div class="mic-button-container" id="mic-container">
+                <div class="listening-ring"></div>
+                <button id="mic-btn">🎤</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- CONFIGURATION ---
+    const RASA_URL = "http://localhost:5005/webhooks/rest/webhook";
+    let autoRestart = true; // Flag to control continuous conversation
+
+    // --- DOM ELEMENTS ---
+    const micBtn = document.getElementById('mic-btn');
+    const micContainer = document.getElementById('mic-container');
+    const statusText = document.getElementById('status-text');
+    const chatBox = document.getElementById('chat-box');
+
+    // --- SPEECH SETUP ---
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        alert("Your browser does not support Web Speech API. Please use Chrome or Edge.");
+    }
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = 'en-US';
+
+    let isListening = false;
+
+    // --- EVENT LISTENERS ---
+    micBtn.addEventListener('click', toggleListening);
+
+    // --- MAIN FUNCTIONS ---
+
+    function toggleListening() {
+        if (isListening) {
+            recognition.stop();
+            // If manually stopped, don't auto-restart immediately
+            autoRestart = false; 
+            updateUIState('idle');
+        } else {
+            startListening();
+        }
+    }
+
+    function startListening() {
+        try {
+            recognition.start();
+            autoRestart = true; // Re-enable auto-restart loop
+        } catch (e) {
+             console.log("Mic already active");
+        }
+    }
+
+    // --- SPEECH RECOGNITION EVENTS ---
+    recognition.onstart = () => {
+        isListening = true;
+        updateUIState('listening');
+    };
+
+    recognition.onend = () => {
+        isListening = false;
+        // Only go back to idle if we aren't processing a reply
+        if (statusText.innerText !== "Processing...") {
+            updateUIState('idle');
+        }
+    };
+
+    recognition.onresult = async (event) => {
+        const text = event.results[0][0].transcript;
+        updateUIState('processing');
+        addMessage(text, 'user');
+
+        try {
+            // SEND TO RASA (Standard REST)
+            const response = await fetch(RASA_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sender: "web_ui_user", message: text })
+            });
+
+            const data = await response.json();
+            
+            if (data.length === 0) {
+                statusText.innerText = "Server received it, but sent no reply.";
+                updateUIState('idle');
+            } else {
+                // Process replies sequentially
+                processBotReplies(data);
+            }
+        } catch (error) {
+            console.error(error);
+            statusText.innerText = "Error connecting to Rasa server.";
+            addMessage("⚠️ Could not connect. Is the server running?", 'bot');
+            updateUIState('idle');
+        }
+    };
+
+    recognition.onerror = (event) => {
+        console.error("Speech error:", event.error);
+        if (event.error === 'no-speech') {
+             statusText.innerText = "No speech detected.";
+        }
+        updateUIState('idle');
+    };
+
+
+    // --- HELPER FUNCTIONS ---
+
+    async function processBotReplies(messages) {
+        for (let i = 0; i < messages.length; i++) {
+            const msg = messages[i];
+            addMessage(msg.text, 'bot');
+            // Wait for TTS to finish before processing next message or restarting mic
+            await speak(msg.text);
+        }
+    }
+
+    function speak(text) {
+        return new Promise((resolve) => {
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // CRITICAL: When TTS ends, resolve promise to continue flow
+            utterance.onend = () => {
+                resolve();
+                // THE MAGIC: Auto-restart mic if allowed
+                if (autoRestart && !isListening) {
+                    // Small delay so it doesn't catch echo
+                    setTimeout(startListening, 500); 
+                }
+            };
+            
+            // Handle errors or incomplete speech
+            utterance.onerror = () => { resolve(); updateUIState('idle'); };
+
+            window.speechSynthesis.speak(utterance);
+        });
+    }
+
+    function addMessage(text, sender) {
+        const msgDiv = document.createElement('div');
+        msgDiv.classList.add('message', sender === 'user' ? 'user-message' : 'bot-message');
+        msgDiv.innerText = text;
+        chatBox.appendChild(msgDiv);
+        scrollToBottom();
+    }
+
+    function updateUIState(state) {
+        micContainer.classList.remove('listening');
+        micBtn.classList.remove('processing');
+        micBtn.innerText = '🎤';
+
+        switch(state) {
+            case 'listening':
+                statusText.innerText = "Listening...";
+                micContainer.classList.add('listening');
+                break;
+            case 'processing':
+                statusText.innerText = "Processing...";
+                micBtn.classList.add('processing');
+                micBtn.innerText = '⏳';
+                break;
+            case 'idle':
+                if (statusText.innerText !== "Error connecting to Rasa server.") {
+                     statusText.innerText = "Tap mic to speak";
+                }
+                break;
+        }
+    }
+
+    function scrollToBottom() {
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+</script>
+</body>
+</html>
